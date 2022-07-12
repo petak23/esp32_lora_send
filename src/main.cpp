@@ -63,12 +63,12 @@ void setup()
   // setup LoRa transceiver module
   LoRa.setPins(LORA_SS, LORA_RESET, LORA_DIO0);
 
-  while (!LoRa.begin(LORA_FREQ))
+  while (!LoRa.begin(866E6))
   {
-    Serial.println(".");
+    Serial.print(".");
     delay(500);
   }
-
+  Serial.println("");
   LoRa.setSyncWord(LORA_SYNC_WORD);
   Serial.println("LoRa Initializing OK!");
 
