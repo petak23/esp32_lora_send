@@ -1,42 +1,32 @@
-/** 
- * Vzorový súbor a popis nastavení v súbore definitions.h 
- * Pre reálnu aplikáciu je potrebné premenovať na: deffinitions.h
- * 
- * Posledná zmena(Last change): 08.12.2021
- * 
+// --- túto časť sa dá zmazať
+// Vzorový súbor a popis nastavení
+// Pre reálnu aplikáciu je potrebné premenovať na: deffinitions.h
+// --- túto časť sa dá zmazať
+
+/** Nastavenia a ich popis
+ *
+ * Posledná zmena(Last change): 12.07.2022
+ *
  * @author Ing. Peter VOJTECH ml. <petak23@gmail.com>
- * @copyright  Copyright (c) 2016 - 2021 Ing. Peter VOJTECH ml.
- * @license
+ * @copyright  Copyright (c) 2022 - 2022 Ing. Peter VOJTECH ml.
  * @link       http://petak23.echo-msz.eu
  * @version 1.0.0
  */
 
-/** Nastavenia Wifi */
-#define WIFI_SSID "my-ssid-name"    
-#define WIFI_PASSWORD "my-extra-strong-password"    
-#define WIFI_HOST "my-host-name"   
-
-/** ------ Nastavenia MQTT ------- */
-// Nastavenia broker-a
-#define MQTT_ENBLED true    // Celkové povolenie MQTT
-#define MQTT_HOST IPAddress(xxx, xxx, xxx, xxx)
-#define MQTT_PORT 1883
-#define MQTT_USER "my-mqtt-broker-name"
-#define MQTT_PASSWORD "my-mqtt-broker-password"
-
-// Nastavenie topic
-const char* topic_temperature = "weather/temperature"; 
-const char* topic_humidity = "weather/humidity"; 
-/* ------- ------- */
-
-/** Prihlasovanie do OTA(AsyncElegantOTA) pre update firmware */
-#define OTA_USER "ota-username";
-#define OTA_PASSWORD "ota-password";
-
 /** Nastavenie a definície senzorov */
-#define DHTTYPE DHT22   // Definovanie typov pripojených senzorov
-#define DHTPIN 5        // Pin, na ktorý je pripojený senzor
+#define DHTTYPE DHT22 // Definovanie typov pripojených senzorov
+#define DHTPIN 4      // Pin, na ktorý je pripojený senzor
 
 /** Ostaté Nastavenia */
-#define PUBLISH_TIME 15000        // Perioda publikácie nameraných dát. Napr.(15000/1000) = 15 sec.
-#define SERIAL_PORT_ENABLED true  // Povolenie výstupu na sériový port - logovanie
+#define PUBLISH_TIME 1            // Perioda publikácie nameraných dát. v minútach
+#define SERIAL_PORT_ENABLED false // Povolenie výstupu na sériový port - logovanie
+
+/** Definície pinov pre vysielací modul */
+#define LORA_SS 5
+#define LORA_RESET 14
+#define LORA_DIO0 2
+// your location's frequency: 433E6 for Asia; 866E6 for Europe; 915E6 for North America
+#define LORA_FREQ 866E6
+// The sync word assures you don't get LoRa messages from other LoRa transceivers
+// ranges from 0-0xFF
+#define LORA_SYNC_WORD 0xFF
