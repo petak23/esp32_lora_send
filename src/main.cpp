@@ -2,7 +2,6 @@
 #include "Tasker.h"
 #include <SPI.h>
 #include <LoRa.h>
-
 #include <Adafruit_BME280.h>
 
 #include "definitions.h"
@@ -10,43 +9,56 @@
 /**
  * Program pre LoRa komunikáciu pomocou ESP32 - vysielač
  *
- * Posledná zmena(last change): 12.07.2022
+ * Posledná zmena(last change): 23.07.2022
  * @author Ing. Peter VOJTECH ml. <petak23@gmail.com>
  * @copyright  Copyright (c) 2022 - 2022 Ing. Peter VOJTECH ml.
  * @license
  * @link       http://petak23.echo-msz.eu
- * @version 1.0.1
+ * @version 1.0.2
  */
 
 Adafruit_BME280 bm; // use I2C interface
-Adafruit_Sensor *bm_temp = bm.getTemperatureSensor();
-Adafruit_Sensor *bm_pressure = bm.getPressureSensor();
-Adafruit_Sensor *bm_humidity = bm.getHumiditySensor();
 
-sensors_event_t temp_event, pressure_event, humidity_event;
+float temperature;  // Teplota
+float humidity;     // Vlhkosť
+float abs_pressure; // Absolútny tlak
+float altitude;     // Nadmorská výška - nastavovaná v metóde setup
+float rel_pressure; // Relatívny tlak prepočítaný na hladinu mora
 
 // Inicialize Tasker
 Tasker tasker;
 
 void readSensor()
 {
-  bm_temp->getEvent(&temp_event);
-  bm_pressure->getEvent(&pressure_event);
-  bm_humidity->getEvent(&humidity_event);
+  // Načítaj hodnoty a spočítaj
+  temperature = bm.readTemperature();
+  abs_pressure = bm.readPressure() / 100;
+  humidity = bm.readHumidity();
+  rel_pressure = abs_pressure / pow(1.0 - altitude / 44330.0, 5.255);
 
-  Serial.print(F("Temperature = "));
-  Serial.print(temp_event.temperature);
-  Serial.println(" *C");
+#if SERIAL_PORT_ENABLED
+  Serial.print("Teplota = ");
+  Serial.print(temperature);
+  Serial.println(" °C");
 
-  Serial.print(F("Humidity = "));
-  Serial.print(humidity_event.relative_humidity);
+  Serial.print("Vlhkosť = ");
+  Serial.print(humidity);
   Serial.println(" %");
 
-  Serial.print(F("Pressure = "));
-  Serial.print(pressure_event.pressure);
+  Serial.print("Absolutny tlak = ");
+  Serial.print(abs_pressure);
   Serial.println(" hPa");
 
+  Serial.print("Relativny tlak = ");
+  Serial.print(rel_pressure);
+  Serial.println(" hPa");
+
+  Serial.print("Nadmorska vyska = ");
+  Serial.print(altitude);
+  Serial.println(" m.n.m");
+
   Serial.println();
+#endif
 }
 
 void taskReadSensor()
@@ -55,52 +67,72 @@ void taskReadSensor()
 
   // Send LoRa packet to receiver
   LoRa.beginPacket();
-  LoRa.print("T:");
-  LoRa.print(temp_event.temperature);
-  LoRa.print("H:");
-  LoRa.print(humidity_event.relative_humidity);
-  LoRa.print(";P:");
-  LoRa.print(pressure_event.pressure);
+  LoRa.print("TE:");
+  LoRa.print(temperature);
+  LoRa.print(";HU:");
+  LoRa.print(humidity);
+  LoRa.print(";AP:");
+  LoRa.print(abs_pressure);
+  LoRa.print(";RP:");
+  LoRa.print(rel_pressure);
+  LoRa.print(";AL:");
+  LoRa.print(altitude);
   LoRa.endPacket();
 }
 
 void setup()
 {
+#if SERIAL_PORT_ENABLED
   // initialize Serial Monitor
   Serial.begin(115200);
   while (!Serial)
     ;
   Serial.println("LoRa Sender");
+#endif
 
   // setup LoRa transceiver module
   LoRa.setPins(LORA_SS, LORA_RESET, LORA_DIO0);
 
-  while (!LoRa.begin(866E6))
+  while (!LoRa.begin(LORA_FREQ))
   {
+#if SERIAL_PORT_ENABLED
     Serial.print(".");
+#endif
     delay(500);
   }
-  Serial.println("");
-  LoRa.setSyncWord(LORA_SYNC_WORD);
-  Serial.println("LoRa Initializing OK!");
 
-  if (!bm.begin(0x76))
+  LoRa.setSyncWord(LORA_SYNC_WORD);
+#if SERIAL_PORT_ENABLED
+  Serial.println(" LoRa Initializing OK!");
+#endif
+
+  if (!bm.begin(BME280_ADD))
   {
+#if SERIAL_PORT_ENABLED
     Serial.println(F("Could not find a valid BMP280 sensor, check wiring or "
                      "try a different address!"));
     Serial.print("SensorID was: 0x");
     Serial.println(bm.sensorID(), 16);
-    Serial.print("        ID of 0xFF probably means a bad address, a BMP 180 or BMP 085\n");
+    Serial.print("   ID of 0xFF probably means a bad address, a BMP 180 or BMP 085\n");
     Serial.print("   ID of 0x56-0x58 represents a BMP 280,\n");
-    Serial.print("        ID of 0x60 represents a bm 280.\n");
-    Serial.print("        ID of 0x61 represents a bm 680.\n");
+    Serial.print("   ID of 0x60 represents a bm 280.\n");
+    Serial.print("   ID of 0x61 represents a bm 680.\n");
+#endif
     while (1)
       delay(10);
   }
+#if SERIAL_PORT_ENABLED
+  Serial.println("-- Weather Station Scenario --");
+  Serial.println("forced mode, 1x temperature / 1x humidity / 1x pressure oversampling,");
+  Serial.println("filter off");
+#endif
+  bm.setSampling(Adafruit_BME280::MODE_FORCED,
+                 Adafruit_BME280::SAMPLING_X1, // temperature
+                 Adafruit_BME280::SAMPLING_X1, // pressure
+                 Adafruit_BME280::SAMPLING_X1, // humidity
+                 Adafruit_BME280::FILTER_OFF);
 
-  bm_temp->printSensorDetails();
-  bm_pressure->printSensorDetails();
-  bm_humidity->printSensorDetails();
+  altitude = 784; // chata // bm.readAltitude(SEALEVELPRESSURE_HPA);
 
   tasker.setTimeout(readSensor, 2000); // Čakanie na senzor;
 
@@ -110,58 +142,6 @@ void setup()
 
 void loop()
 {
+  bm.takeForcedMeasurement();
   tasker.loop();
 }
-
-/*
-#include <Wire.h> //include Wire.h library
-
-void setup()
-{
-  Wire.begin();         // Wire communication begin
-  Serial.begin(115200); // The baudrate of Serial monitor is set in 9600
-  while (!Serial)
-    ; // Waiting for Serial Monitor
-  Serial.println("\nI2C address Scanner CircuitSchools.com");
-}
-
-void loop()
-{
-  byte error, address; // variable for error and I2C address
-  int devicecount;
-
-  Serial.println("Scanning...");
-
-  devicecount = 0;
-  for (address = 1; address < 127; address++)
-  {
-    // The i2c_scanner uses the return value of
-    // the Write.endTransmisstion to see if
-    // a device did acknowledge to the address.
-    Wire.beginTransmission(address);
-    error = Wire.endTransmission();
-
-    if (error == 0)
-    {
-      Serial.print("I2C device found at address 0x");
-      if (address < 16)
-        Serial.print("0");
-      Serial.print(address, HEX);
-      Serial.println("  !");
-      devicecount++;
-    }
-    else if (error == 4)
-    {
-      Serial.print("Unknown error at address 0x");
-      if (address < 16)
-        Serial.print("0");
-      Serial.println(address, HEX);
-    }
-  }
-  if (devicecount == 0)
-    Serial.println("No I2C devices found\n");
-  else
-    Serial.println("done\n");
-
-  delay(5000); // wait 5 seconds for the next I2C scan
-}*/

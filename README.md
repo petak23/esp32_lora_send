@@ -4,15 +4,16 @@ Pokusná komunikácia cez rozhranie LoRa pomocou esp32, komunikačný modul SX12
 
 ## Špecifikácia
 
-Cez rozhranie LoRa je posielaná informácia o teplote a vlhkosti každých 60s(alebo iný nastavený čas).
+Cez rozhranie LoRa je posielaná informácia o teplote, vlhkosti a tlaku každých 60s(alebo iný nastavený čas).
+Použitý senzor BME280.
 
 ## Odkazy na použité knižnice
 
 - **LoRa**: [https://github.com/sandeepmistry/arduino-LoRa](https://github.com/sandeepmistry/arduino-LoRa)
-- **DHT-sensor-library**: [https://github.com/adafruit/DHT-sensor-library](https://github.com/adafruit/DHT-sensor-library)
-- **Adafruit Unified Sensor**: [https://github.com/adafruit/Adafruit_Sensor](https://github.com/adafruit/Adafruit_Sensor)
+- **Adafruit_BME280_Library**: [https://github.com/adafruit/Adafruit_BME280_Library](https://github.com/adafruit/Adafruit_BME280_Library)
 - **Tasker**: [https://github.com/joysfera/arduino-tasker](https://github.com/joysfera/arduino-tasker)
 
 ## Zdroje
 
 - [ESP32 with LoRa using Arduino IDE – Getting Started](https://randomnerdtutorials.com/esp32-lora-rfm95-transceiver-arduino-ide/)
+- [Prepočet atmosférického tlaku na hladinu mora](http://deadawp.blog.sector.sk/blogclanok/13131/prepocet-atmosferickeho-tlaku-na-hladinu-mora.htm)
