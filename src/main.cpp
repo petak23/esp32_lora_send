@@ -3,18 +3,18 @@
 #include <SPI.h>
 #include <LoRa.h>
 #include <Adafruit_BME280.h>
-
+#include "pv_crypt.h"
 #include "definitions.h"
 
 /**
  * Program pre LoRa komunikáciu pomocou ESP32 - vysielač
  *
- * Posledná zmena(last change): 23.07.2022
+ * Posledná zmena(last change): 09.09.2022
  * @author Ing. Peter VOJTECH ml. <petak23@gmail.com>
  * @copyright  Copyright (c) 2022 - 2022 Ing. Peter VOJTECH ml.
  * @license
  * @link       http://petak23.echo-msz.eu
- * @version 1.0.2
+ * @version 1.0.3
  */
 
 Adafruit_BME280 bm; // use I2C interface
@@ -25,7 +25,9 @@ float abs_pressure; // Absolútny tlak
 float altitude;     // Nadmorská výška - nastavovaná v metóde setup
 float rel_pressure; // Relatívny tlak prepočítaný na hladinu mora
 
-// Inicialize Tasker
+pvCrypt *pv_crypr = new pvCrypt();
+
+// Inicializácia Tasker-a
 Tasker tasker;
 
 void readSensor()
@@ -37,52 +39,49 @@ void readSensor()
   rel_pressure = abs_pressure / pow(1.0 - altitude / 44330.0, 5.255);
 
 #if SERIAL_PORT_ENABLED
-  Serial.print("Teplota = ");
-  Serial.print(temperature);
-  Serial.println(" °C");
-
-  Serial.print("Vlhkosť = ");
-  Serial.print(humidity);
-  Serial.println(" %");
-
-  Serial.print("Absolutny tlak = ");
-  Serial.print(abs_pressure);
-  Serial.println(" hPa");
-
-  Serial.print("Relativny tlak = ");
-  Serial.print(rel_pressure);
-  Serial.println(" hPa");
-
-  Serial.print("Nadmorska vyska = ");
-  Serial.print(altitude);
-  Serial.println(" m.n.m");
-
-  Serial.println();
+  Serial.printf("Teplota = %4.2f °C\n", temperature);
+  Serial.printf("Vlhkosť = %4.1f %%\n", humidity);
+  Serial.printf("Absolutny tlak = %5.1f hPa\n", abs_pressure);
+  Serial.printf("Relativny tlak = %5.1f hPa\n", rel_pressure);
+  Serial.printf("Nadmorska vyska = %4.0f m.n.m\n\n", altitude);
 #endif
 }
 
-void taskReadSensor()
+void taskSendLoRaMessage()
 {
   readSensor();
+  String message = "TE:" + String(temperature) + ";HU:" + String(humidity);
+  message += ";AP:" + String(abs_pressure) + ";RP:" + String(rel_pressure);
+  message += ";AL:" + String(altitude);
+
+  int l = message.length() + 1;
+  char tmp[l];
+  message.toCharArray(tmp, l);
+
+  char *src = tmp;
+  char *itemName = (char *)"BMP280";
+
+  String enc_message;
+  enc_message = pv_crypr->encrypt(itemName, src);
 
   // Send LoRa packet to receiver
   LoRa.beginPacket();
-  LoRa.print("TE:");
-  LoRa.print(temperature);
-  LoRa.print(";HU:");
-  LoRa.print(humidity);
-  LoRa.print(";AP:");
-  LoRa.print(abs_pressure);
-  LoRa.print(";RP:");
-  LoRa.print(rel_pressure);
-  LoRa.print(";AL:");
-  LoRa.print(altitude);
+  //  LoRa.print(message);
+  LoRa.print("message:");
+  LoRa.print(enc_message);
   LoRa.endPacket();
+#if SERIAL_PORT_ENABLED
+  Serial.println("LORA:");
+  Serial.println("Pôvodná správa: " + message);
+  Serial.println("Poslaná šifrovaná správa: 'message:" + enc_message + "'");
+#endif
 }
 
 void setup()
 {
+
 #if SERIAL_PORT_ENABLED
+  delay(5000);
   // initialize Serial Monitor
   Serial.begin(115200);
   while (!Serial)
@@ -132,12 +131,14 @@ void setup()
                  Adafruit_BME280::SAMPLING_X1, // humidity
                  Adafruit_BME280::FILTER_OFF);
 
-  altitude = 784; // chata // bm.readAltitude(SEALEVELPRESSURE_HPA);
+  altitude = 706; // PP //784; // chata // bm.readAltitude(SEALEVELPRESSURE_HPA);
+
+  pv_crypr->setInfo((char *)DEVICE_ID, (char *)PASS_PHRASE);
 
   tasker.setTimeout(readSensor, 2000); // Čakanie na senzor;
 
   // Publikovanie nových hodnôt od teraz každých PUBLISH_TIME sec.
-  tasker.setInterval(taskReadSensor, (PUBLISH_TIME * 1000));
+  tasker.setInterval(taskSendLoRaMessage, (PUBLISH_TIME * 1000));
 }
 
 void loop()
